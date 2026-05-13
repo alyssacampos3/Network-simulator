@@ -1,0 +1,77 @@
+"""
+VLAN Validation Automation
+Checks for VLAN consistency across the topology.
+"""
+
+
+def validate_vlans(topology: dict) -> list[dict]:
+    """
+    Validate VLAN configurations across all switches.
+    Checks for:
+    - VLAN consistency between connected switches
+    - Trunk mismatches
+    - Orphaned VLANs
+    """
+    results = []
+    vlan_map: dict[str, list[str]] = {}  # vlan_id -> list of hostnames
+
+    for node in topology.get("nodes", []):
+        data = node.get("data", {})
+        device_config = data.get("deviceConfig", {})
+        hostname = data.get("hostname", "unknown")
+        vlan = device_config.get("vlan")
+
+        if vlan:
+            vlan_key = str(vlan)
+            if vlan_key not in vlan_map:
+                vlan_map[vlan_key] = []
+            vlan_map[vlan_key].append(hostname)
+
+    # Check for VLAN consistency on connected links
+    edges = topology.get("edges", [])
+    nodes_by_id = {n["id"]: n for n in topology.get("nodes", [])}
+
+    for edge in edges:
+        src = nodes_by_id.get(edge.get("source"))
+        tgt = nodes_by_id.get(edge.get("target"))
+        if not src or not tgt:
+            continue
+
+        src_type = src.get("type")
+        tgt_type = tgt.get("type")
+
+        # Check switch-to-switch links for VLAN consistency
+        if src_type == "switch" and tgt_type == "switch":
+            src_vlan = src.get("data", {}).get("deviceConfig", {}).get("vlan", 1)
+            tgt_vlan = tgt.get("data", {}).get("deviceConfig", {}).get("vlan", 1)
+
+            if src_vlan != tgt_vlan:
+                results.append({
+                    "check": "vlan_mismatch",
+                    "severity": "warning",
+                    "message": f"VLAN mismatch between {src['data']['hostname']} (VLAN {src_vlan}) and {tgt['data']['hostname']} (VLAN {tgt_vlan})",
+                    "affected_devices": [src["data"]["hostname"], tgt["data"]["hostname"]],
+                    "recommendation": "Ensure trunk ports are configured or VLANs match on access ports",
+                })
+
+    # Check for single-device VLANs (potential orphans)
+    for vlan_id, hosts in vlan_map.items():
+        if len(hosts) == 1:
+            results.append({
+                "check": "orphaned_vlan",
+                "severity": "info",
+                "message": f"VLAN {vlan_id} only exists on {hosts[0]} — may be intentional or orphaned",
+                "affected_devices": hosts,
+                "recommendation": "Verify this VLAN is intentionally isolated or extend it to other switches",
+            })
+
+    if not results:
+        results.append({
+            "check": "vlan_validation",
+            "severity": "success",
+            "message": "All VLAN configurations are consistent",
+            "affected_devices": [],
+            "recommendation": "No action needed",
+        })
+
+    return results

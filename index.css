@@ -1,0 +1,107 @@
+import type { IncidentEvent, IncidentSeverity } from '../types'
+
+/**
+ * Incident Timeline Generator
+ * Monitors topology changes and generates event timelines
+ */
+
+let incidentCounter = 0
+
+export function createIncident(
+  deviceId: string,
+  hostname: string,
+  severity: IncidentSeverity,
+  message: string,
+  category: IncidentEvent['category']
+): IncidentEvent {
+  return {
+    id: `INC-${String(++incidentCounter).padStart(4, '0')}`,
+    timestamp: new Date().toISOString(),
+    deviceId,
+    hostname,
+    severity,
+    message,
+    category,
+  }
+}
+
+/**
+ * Generate a simulated incident timeline based on a detected issue
+ */
+export function generateIncidentTimeline(
+  issueType: 'interface_down' | 'routing_failure' | 'vlan_unreachable' | 'duplicate_ip',
+  deviceHostname: string,
+  deviceId: string
+): IncidentEvent[] {
+  const now = Date.now()
+  const events: IncidentEvent[] = []
+
+  switch (issueType) {
+    case 'interface_down':
+      events.push(
+        createEvent(now - 180000, deviceId, deviceHostname, 'critical', 'Interface G0/1 transitioned to DOWN state', 'interface'),
+        createEvent(now - 120000, deviceId, deviceHostname, 'warning', 'OSPF neighbor adjacency lost', 'routing'),
+        createEvent(now - 90000, deviceId, deviceHostname, 'warning', 'Packet loss detected on affected segment', 'performance'),
+        createEvent(now - 60000, deviceId, deviceHostname, 'critical', 'VLAN 20 unreachable from downstream hosts', 'vlan'),
+        createEvent(now - 30000, deviceId, deviceHostname, 'info', 'Automated health check triggered', 'performance'),
+      )
+      break
+
+    case 'routing_failure':
+      events.push(
+        createEvent(now - 240000, deviceId, deviceHostname, 'warning', 'Route flapping detected on 10.0.0.0/24', 'routing'),
+        createEvent(now - 180000, deviceId, deviceHostname, 'critical', 'OSPF adjacency DOWN with neighbor', 'routing'),
+        createEvent(now - 120000, deviceId, deviceHostname, 'warning', 'Convergence timer expired', 'routing'),
+        createEvent(now - 60000, deviceId, deviceHostname, 'critical', 'Multiple routes withdrawn from RIB', 'routing'),
+        createEvent(now, deviceId, deviceHostname, 'info', 'Backup path activated', 'routing'),
+      )
+      break
+
+    case 'vlan_unreachable':
+      events.push(
+        createEvent(now - 120000, deviceId, deviceHostname, 'warning', 'STP topology change detected', 'vlan'),
+        createEvent(now - 90000, deviceId, deviceHostname, 'warning', 'VLAN trunk negotiation failed', 'vlan'),
+        createEvent(now - 60000, deviceId, deviceHostname, 'critical', 'VLAN 10 isolated - no active trunk ports', 'vlan'),
+        createEvent(now - 30000, deviceId, deviceHostname, 'info', 'STP reconvergence in progress', 'vlan'),
+      )
+      break
+
+    case 'duplicate_ip':
+      events.push(
+        createEvent(now - 60000, deviceId, deviceHostname, 'warning', 'Gratuitous ARP conflict detected', 'security'),
+        createEvent(now - 45000, deviceId, deviceHostname, 'critical', 'Duplicate IP address detected on network', 'config'),
+        createEvent(now - 30000, deviceId, deviceHostname, 'warning', 'ARP table inconsistency - multiple MACs for same IP', 'security'),
+        createEvent(now, deviceId, deviceHostname, 'info', 'DAI (Dynamic ARP Inspection) alert generated', 'security'),
+      )
+      break
+  }
+
+  return events
+}
+
+function createEvent(
+  timestamp: number,
+  deviceId: string,
+  hostname: string,
+  severity: IncidentSeverity,
+  message: string,
+  category: IncidentEvent['category']
+): IncidentEvent {
+  return {
+    id: `INC-${String(++incidentCounter).padStart(4, '0')}`,
+    timestamp: new Date(timestamp).toISOString(),
+    deviceId,
+    hostname,
+    severity,
+    message,
+    category,
+  }
+}
+
+/**
+ * Format timestamp for display
+ */
+export function formatTimestamp(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}

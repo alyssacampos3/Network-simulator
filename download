@@ -1,0 +1,61 @@
+# Architecture Overview
+
+## System Design
+
+This platform follows a layered architecture separating concerns between visualization, business logic, and data persistence.
+
+## Frontend Architecture
+
+### Component Layer
+React components handle all UI rendering. Each panel (Health Dashboard, CLI Terminal, etc.) is a self-contained component that reads from Zustand stores.
+
+### Engine Layer
+Pure TypeScript modules that contain the simulation logic:
+- **CLI Engine** — Parses commands and generates IOS-style output based on live topology state
+- **Pathfinder** — Implements packet routing using BFS across the topology graph
+- **ARP Engine** — Builds ARP tables by discovering neighbors through connected edges
+- **Troubleshoot Engine** — Rule-based diagnostic system that detects issues and correlates symptoms
+- **Config Risk Engine** — Validates configurations against best practices
+- **Health Metrics** — Simulates device telemetry (CPU, memory, latency)
+- **Incident Engine** — Generates event timelines for detected issues
+
+### State Layer (Zustand)
+- **networkStore** — Topology state (nodes, edges, configs)
+- **trafficStore** — Traffic event log
+- **animationStore** — Packet animation state
+
+### Persistence Layer
+- LocalStorage for auto-save
+- JSON export/import
+- URL encoding for shareable topologies
+
+## Backend Architecture (Python/FastAPI)
+
+### API Layer
+RESTful endpoints for automation tasks. CORS-enabled for frontend communication.
+
+### Automation Modules
+- **config_backup** — Generates and saves device configurations
+- **health_check** — Simulates SNMP-style health polling
+- **vlan_validation** — Cross-device VLAN consistency checks
+- **compliance** — Security and operational best-practice scanning
+- **troubleshoot_report** — Automated diagnostic report generation
+
+### Inventory
+YAML-based device definitions. Serves as the source of truth for automation scripts.
+
+## Data Flow
+
+```
+User Interaction → React Component → Zustand Store → Engine Processing
+                                                    ↓
+                                              State Update → Re-render
+```
+
+## Key Design Decisions
+
+1. **Client-side simulation** — All network logic runs in the browser for instant feedback
+2. **Zustand over Redux** — Simpler API, less boilerplate for this scale
+3. **Engine separation** — Pure functions make testing straightforward
+4. **YAML inventory** — Human-readable, version-controllable device definitions
+5. **Simulated metrics** — Demonstrates the monitoring pattern without requiring real hardware
